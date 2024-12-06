@@ -3,53 +3,76 @@ import tkinter as tk
 from tkinter import messagebox
 import os
 from datetime import datetime
-from PIL import ImageGrab  # Importing ImageGrab for screenshots
-import subprocess  # For opening the folder
+from PIL import ImageGrab
+import subprocess
+import easyocr  # Import EasyOCR
 
-# Function to take a picture
+# Initialize the EasyOCR reader
+reader = easyocr.Reader(['en'])  # You can specify other languages as needed
+
+
+# Function to detect text using EasyOCR
+def detect_text(image_path):
+    # Read the image using OpenCV
+    image = cv2.imread(image_path)
+    # Use EasyOCR to detect text
+    results = reader.readtext(image)
+
+    # Extract the detected text
+    detected_text = ""
+    for (bbox, text, prob) in results:
+        detected_text += f"{text}\n"  # Append each detected text line
+
+    return detected_text.strip()  # Return the detected text
+
+
+# Function to take a picture and detect text
 def take_picture():
-    # Capture from the webcam
     ret, frame = cap.read()
     if ret:
-        # Create a folder to save images if it doesn't exist
         if not os.path.exists('captured_images'):
             os.makedirs('captured_images')
 
-        # Create a filename with the current timestamp
         filename = f"captured_images/image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-
-        # Save the image
         cv2.imwrite(filename, frame)
         messagebox.showinfo("Success", f"Image saved as {filename}")
+
+        # Detect text from the image
+        detected_text = detect_text(filename)
+
+        # Save the detected text to a text file
+        text_filename = f"captured_images/extracted_text_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        with open(text_filename, 'w') as text_file:
+            text_file.write(detected_text)
+
+        messagebox.showinfo("Text Extracted", f"Extracted text saved as {text_filename}")
     else:
         messagebox.showerror("Error", "Failed to capture image")
 
+
 # Function to take a screenshot
 def take_screenshot():
-    # Create a folder to save screenshots if it doesn't exist
     if not os.path.exists('captured_images'):
         os.makedirs('captured_images')
 
-    # Create a filename with the current timestamp
     filename = f"captured_images/screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-
-    # Take a screenshot
     screenshot = ImageGrab.grab()
     screenshot.save(filename)
     messagebox.showinfo("Success", f"Screenshot saved as {filename}")
 
+
 # Function to open the folder containing images
 def open_folder():
     folder_path = os.path.abspath('captured_images')
-    subprocess.Popen(f'explorer "{folder_path}"')  # For Windows
-    # For macOS, you can use: subprocess.Popen(['open', folder_path])
-    # For Linux, you can use: subprocess.Popen(['xdg-open', folder_path])
+    subprocess.Popen(f'explorer "{folder_path}"')
+
 
 # Function to close the webcam
 def close_camera():
     cap.release()
     cv2.destroyAllWindows()
     root.quit()
+
 
 # Initialize the webcam
 cap = cv2.VideoCapture(0)
