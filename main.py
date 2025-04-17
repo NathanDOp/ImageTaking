@@ -12,8 +12,8 @@ import datetime
 output_dir = "detected_texts"
 os.makedirs(output_dir, exist_ok=True)
 
-# Load improved YOLOv8 model
-model = YOLO("license_plate_detector.pt")
+# Load improved YOLOv8 model to use this for any other uses (like the license plate detection).
+model = YOLO("yolov8n.pt")
 
 # Load EasyOCR
 reader = easyocr.Reader(['en'], gpu=False)
@@ -33,7 +33,6 @@ text_display.pack()
 # Global variable to store detected text
 detected_text = ""
 
-
 # Function to preprocess the image
 def preprocess_image(image):
     # Convert to grayscale
@@ -46,12 +45,7 @@ def preprocess_image(image):
     thresh_image = cv2.adaptiveThreshold(blurred_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                          cv2.THRESH_BINARY, 11, 2)
 
-    # Morphological operations to enhance text regions
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    morph_image = cv2.morphologyEx(thresh_image, cv2.MORPH_CLOSE, kernel)
-
-    return morph_image
-
+    return thresh_image
 
 # Save text and image function
 def save_text_and_image(image, text):
@@ -71,12 +65,10 @@ def save_text_and_image(image, text):
     else:
         messagebox.showwarning("No Text", "No text to save.")
 
-
 # Open folder function
 def open_folder():
     folder = os.path.abspath(output_dir)
     os.startfile(folder)
-
 
 # Capture image function
 def capture_image():
@@ -107,18 +99,15 @@ def capture_image():
         if y1 < 0 or y2 > small_frame.shape[0] or x1 < 0 or x2 > small_frame.shape[1]:
             continue
 
-        cropped = preprocessed_frame[y1:y2, x1:x2]  # Use preprocessed image for OCR
-
-        # Debugging: Show cropped image
-        #cv2.imshow("Cropped Image", cropped)
-        #cv2.waitKey(1)  # Wait for a brief moment to display the cropped image
+        # Crop the original frame for OCR
+        cropped = small_frame[y1:y2, x1:x2]
 
         # Use EasyOCR to read text from the cropped image
-        ocr_results = reader.readtext(cropped, allowlist='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', detail=0)
+        ocr_results = reader.readtext(cropped, detail=0)
 
         for text in ocr_results:
-            cleaned = text.strip().replace(" ", "")
-            if len(cleaned) > 3:  # Filter out short texts
+            cleaned = text.strip()  # Remove leading/trailing whitespace
+            if cleaned:  # Check if the cleaned text is not empty
                 combined_texts.append(cleaned)
                 cv2.rectangle(small_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 cv2.putText(small_frame, cleaned, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -139,7 +128,6 @@ def capture_image():
     video_label.imgtk = imgtk
     video_label.configure(image=imgtk)
 
-
 def process_frame():
     ret, frame = cap.read()
     if not ret:
@@ -159,7 +147,6 @@ def process_frame():
     video_label.configure(image=imgtk)
 
     root.after(10, process_frame)
-
 
 # Buttons
 button_frame = tk.Frame(root)
